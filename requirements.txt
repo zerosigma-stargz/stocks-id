@@ -13,7 +13,9 @@ pandas>=2.1.0
 numpy>=1.26.0
 
 # --- Indikator Teknikal ---
-pandas-ta>=0.3.14b
+# PENTING: pandas-ta 0.3.14b digunakan karena versi 0.4.x menarik numba/llvmlite
+# yang belum kompatibel dengan Python 3.12+. Jangan upgrade ke 0.4.x.
+pandas-ta==0.3.14b0
 
 # --- Visualisasi ---
 plotly>=5.19.0
