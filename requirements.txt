@@ -1,0 +1,37 @@
+# ============================================================
+# StockMomentum ID — Dependencies
+# ============================================================
+
+# --- Framework UI ---
+streamlit>=1.32.0
+
+# --- Data Pasar ---
+yfinance>=0.2.37
+
+# --- Manipulasi & Komputasi Data ---
+pandas>=2.1.0
+numpy>=1.26.0
+
+# --- Indikator Teknikal ---
+pandas-ta>=0.3.14b
+
+# --- Visualisasi ---
+plotly>=5.19.0
+
+# --- HTTP & HTML Parsing ---
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+
+# --- Komputasi Ilmiah (Support/Resistance — argrelextrema) ---
+scipy>=1.12.0
+
+# --- Machine Learning (opsional, digunakan scikit-learn) ---
+scikit-learn>=1.4.0
+
+# --- AI Assistant ---
+google-generativeai>=0.8.0
+
+# --- Testing ---
+pytest>=7.0.0
+hypothesis>=6.0.0
