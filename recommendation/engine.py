@@ -281,11 +281,25 @@ def _generate_card(
 
     holding_duration = _determine_holding_duration(horizon, signal.signal_strength)
 
-    # Kumpulkan penjelasan dari indikator yang terpicu
+    # Kumpulkan penjelasan dari indikator yang terpicu, dikelompokkan per dimensi
+    # dengan konteks arah sinyal yang jelas
     explanation: list[str] = []
+
+    _arah_label = {
+        SignalDirection.BELI:   'mendukung BELI',
+        SignalDirection.JUAL:   'mendukung JUAL',
+        SignalDirection.NETRAL: 'netral',
+    }
+
     for dim in signal.dimension_scores:
+        if not dim.triggered_indicators:
+            continue
+        arah = _arah_label.get(dim.direction, 'netral')
+        skor = f'{dim.score:.0f}/{dim.max_score:.0f}'
+        # Prefix DIM: digunakan oleh UI untuk membedakan header vs baris indikator
+        explanation.append(f'DIM:{dim.name} ({skor}) — {arah}')
         for ind in dim.triggered_indicators:
-            explanation.append(f'[{dim.name}] {ind}')
+            explanation.append(f'  {ind}')
 
     if not explanation:
         explanation = ['Belum ada sinyal yang cukup kuat saat ini.']

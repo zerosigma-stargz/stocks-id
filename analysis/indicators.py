@@ -815,63 +815,67 @@ def _calc_stochastic(df: pd.DataFrame, standard_active: bool, n: int) -> None:
 def _calc_candlestick(df: pd.DataFrame, ipo_config: dict, n: int) -> None:
     """
     Hitung pola candlestick secara manual menggunakan numpy.
-    Library ta tidak menyediakan candlestick patterns, sehingga
-    implementasi ini selalu menggunakan numpy.
+    Library ta tidak menyediakan candlestick patterns.
+
+    Nilai kolom:
+      > 0  : pola bullish terdeteksi
+      < 0  : pola bearish terdeteksi
+      0    : tidak ada pola (candle biasa) — BUKAN NaN
+      NaN  : indikator dinonaktifkan oleh IPO config
     """
     cdl_cols = _INDICATOR_COLUMNS['Candlestick']
 
     if ipo_config.get('Candlestick', False) and n >= 3:
         try:
-            op = df['Open'].values
-            hi = df['High'].values
-            lo = df['Low'].values
-            cl = df['Close'].values
+            op = df['Open'].values.astype(float)
+            hi = df['High'].values.astype(float)
+            lo = df['Low'].values.astype(float)
+            cl = df['Close'].values.astype(float)
 
-            # Hammer: body kecil di atas, lower shadow panjang (>= 2x body), upper shadow kecil
             body = np.abs(cl - op)
             lower_shadow = np.where(cl >= op, op - lo, cl - lo)
             upper_shadow = np.where(cl >= op, hi - cl, hi - op)
-            avg_body = np.where(body > 0, body, 1e-10)
-            hammer = (
-                (lower_shadow >= 2.0 * avg_body) &
-                (upper_shadow <= 0.3 * avg_body) &
-                (body > 0)
-            ).astype(float)
-            hammer[hammer == 0] = np.nan
+            # Hindari division by zero: gunakan body minimum 1e-10
+            safe_body = np.where(body > 0, body, 1e-10)
 
-            # Shooting Star: body kecil di bawah, upper shadow panjang (>= 2x body), lower shadow kecil
-            shooting_star = (
-                (upper_shadow >= 2.0 * avg_body) &
-                (lower_shadow <= 0.3 * avg_body) &
-                (body > 0)
-            ).astype(float)
-            shooting_star[shooting_star == 0] = np.nan
+            # Hammer: body kecil, lower shadow >= 2x body, upper shadow <= 0.3x body
+            hammer = np.where(
+                (lower_shadow >= 2.0 * safe_body) &
+                (upper_shadow <= 0.3 * safe_body) &
+                (body > 0),
+                100.0, 0.0
+            )
 
-            # Doji: body sangat kecil relatif terhadap range (< 10% dari range)
-            candle_range = hi - lo
-            candle_range = np.where(candle_range > 0, candle_range, 1e-10)
-            doji = (body / candle_range < 0.1).astype(float)
-            doji[doji == 0] = np.nan
+            # Shooting Star: body kecil, upper shadow >= 2x body, lower shadow <= 0.3x body
+            shooting_star = np.where(
+                (upper_shadow >= 2.0 * safe_body) &
+                (lower_shadow <= 0.3 * safe_body) &
+                (body > 0),
+                -100.0, 0.0
+            )
 
-            # Engulfing: candle saat ini menelan candle sebelumnya
-            engulfing = np.full(n, np.nan)
+            # Doji: body < 10% dari range candle
+            candle_range = np.where(hi - lo > 0, hi - lo, 1e-10)
+            doji = np.where(body / candle_range < 0.1, 100.0, 0.0)
+
+            # Engulfing: candle saat ini menelan body candle sebelumnya
+            engulfing = np.zeros(n, dtype=float)
             for i in range(1, n):
-                prev_body_lo = min(op[i - 1], cl[i - 1])
-                prev_body_hi = max(op[i - 1], cl[i - 1])
-                curr_body_lo = min(op[i], cl[i])
-                curr_body_hi = max(op[i], cl[i])
-                if curr_body_lo < prev_body_lo and curr_body_hi > prev_body_hi:
-                    # Bullish engulfing: candle saat ini bullish, sebelumnya bearish
+                prev_lo = min(op[i - 1], cl[i - 1])
+                prev_hi = max(op[i - 1], cl[i - 1])
+                curr_lo = min(op[i], cl[i])
+                curr_hi = max(op[i], cl[i])
+                if curr_lo < prev_lo and curr_hi > prev_hi:
                     if cl[i] > op[i] and cl[i - 1] < op[i - 1]:
-                        engulfing[i] = 1.0
-                    # Bearish engulfing: candle saat ini bearish, sebelumnya bullish
+                        engulfing[i] = 100.0   # Bullish engulfing
                     elif cl[i] < op[i] and cl[i - 1] > op[i - 1]:
-                        engulfing[i] = -1.0
+                        engulfing[i] = -100.0  # Bearish engulfing
 
-            df['CDL_HAMMER'] = hammer
-            df['CDL_SHOOTING_STAR'] = shooting_star
-            df['CDL_DOJI_10_0.1'] = doji
-            df['CDL_ENGULFING'] = engulfing
+            # Simpan sebagai float — 0 berarti tidak ada pola, bukan NaN
+            df['CDL_HAMMER']       = hammer.astype(float)
+            df['CDL_SHOOTING_STAR'] = shooting_star.astype(float)
+            df['CDL_DOJI_10_0.1']  = doji.astype(float)
+            df['CDL_ENGULFING']    = engulfing
 
         except Exception as e:
             logger.warning(f"Gagal menghitung pola candlestick: {e}")
@@ -1016,6 +1020,17 @@ def get_nan_indicator_messages(
             continue
 
         # Cek apakah kolom ada dan bernilai NaN di baris terakhir
+        # Khusus Candlestick: cukup cek kolom ada dan tidak semua NaN
+        # (nilai 0 = tidak ada pola di candle itu, bukan berarti indikator tidak tersedia)
+        if indicator == 'Candlestick':
+            cdl_cols_present = [c for c in columns if c in df.columns]
+            if not cdl_cols_present:
+                messages.append(
+                    f'Indikator {display_name} tidak tersedia karena data tidak mencukupi'
+                )
+            # Jika kolom ada (meski semua 0 di baris terakhir), indikator dianggap aktif
+            continue
+
         for col in columns:
             # Cek nama kolom eksak dulu, lalu cari dengan prefix
             actual_col = col

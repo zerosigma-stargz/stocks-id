@@ -358,10 +358,33 @@ def render_tab_rekomendasi(result: AnalysisResult) -> None:
                 if card.timeframe_alignment:
                     st.caption('↑ Multi-timeframe selaras')
 
-                if card.explanation:
+                if card.explanation and card.explanation != ['Belum ada sinyal yang cukup kuat saat ini.']:
                     with st.expander('Detail Sinyal', expanded=False):
-                        for exp in card.explanation[:8]:
-                            st.caption(f'• {exp}')
+                        for line in card.explanation:
+                            if line.startswith('DIM:'):
+                                # Header dimensi — tampilkan sebagai label uppercase
+                                clean = line[4:].strip()
+                                st.markdown(
+                                    f'<div style="font-size:0.72rem;font-weight:700;'
+                                    f'color:var(--text-color,#111);'
+                                    f'text-transform:uppercase;letter-spacing:0.04em;'
+                                    f'margin-top:10px;margin-bottom:2px;'
+                                    f'border-bottom:1px solid rgba(128,128,128,0.15);'
+                                    f'padding-bottom:2px;">{clean}</div>',
+                                    unsafe_allow_html=True,
+                                )
+                            else:
+                                # Baris indikator
+                                clean = line.strip()
+                                st.markdown(
+                                    f'<div style="font-size:0.80rem;'
+                                    f'color:var(--text-color,#333);'
+                                    f'padding:2px 0 2px 10px;line-height:1.6;">'
+                                    f'— {clean}</div>',
+                                    unsafe_allow_html=True,
+                                )
+                elif card.signal == SignalDirection.NETRAL:
+                    st.caption('Belum ada sinyal yang cukup kuat saat ini.')
 
     st.divider()
     st.markdown('**Interpretasi**')
