@@ -1,11 +1,17 @@
 # ============================================================
 # StockMomentum ID — Dependencies
+# Diuji pada Python 3.11 / yfinance 1.3.0
 # ============================================================
 
 # --- Framework UI ---
 streamlit>=1.32.0
 
 # --- Data Pasar ---
+# yfinance 1.x (Mei 2025+) mengubah API download secara signifikan.
+# fetcher.py kompatibel dengan 0.2.x dan 1.x via strategi fallback bertingkat:
+#   1. yf.download(..., multi_level_index=False)  — yfinance 1.x
+#   2. yf.download(...)                           — standar 0.2.x / 1.x
+#   3. yf.Ticker().history()                      — paling stabil di 1.x
 yfinance>=0.2.37
 
 # --- Manipulasi & Komputasi Data ---
@@ -13,9 +19,10 @@ pandas>=2.1.0
 numpy>=1.26.0
 
 # --- Indikator Teknikal ---
-# PENTING: pandas-ta 0.3.14b digunakan karena versi 0.4.x menarik numba/llvmlite
-# yang belum kompatibel dengan Python 3.12+. Jangan upgrade ke 0.4.x.
-pandas-ta==0.3.14b0
+# Menggunakan library 'ta' (bukosabino/ta) sebagai pengganti pandas-ta.
+# pandas-ta 0.4.x menarik numba/llvmlite yang tidak kompatibel Python 3.11+.
+# Library 'ta' hanya membutuhkan pandas + numpy, tanpa dependency berat.
+ta>=0.11.0
 
 # --- Visualisasi ---
 plotly>=5.19.0
@@ -25,13 +32,16 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=5.1.0
 
-# --- Komputasi Ilmiah (Support/Resistance — argrelextrema) ---
+# --- Komputasi Ilmiah ---
+# scipy.signal.argrelextrema digunakan untuk deteksi swing high/low di support_resistance.py
 scipy>=1.12.0
 
-# --- Machine Learning (opsional, digunakan scikit-learn) ---
+# --- Machine Learning ---
 scikit-learn>=1.4.0
 
 # --- AI Assistant ---
+# google-generativeai untuk integrasi Gemini AI (opsional, fitur Tanya Analis)
+# Dapatkan API key gratis di: https://aistudio.google.com/apikey
 google-generativeai>=0.8.0
 
 # --- Testing ---
